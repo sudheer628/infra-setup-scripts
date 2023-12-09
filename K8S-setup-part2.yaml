@@ -1,0 +1,49 @@
+---
+- name: Kubernetes cluster Setup
+  hosts: new
+  become: yes
+  gather_facts: yes
+  tasks:
+
+    - name: starting to perform steps after kubeadm init
+      ansible.builtin.debug:
+        msg: "this is to start steps post kubeadm init in master node"
+
+    - name: Please confirm
+      pause:
+        prompt: "Do you want to proceed? (y/n) to perform steps after kubeadm init"
+      register: user_input
+
+    - name: Check user input
+      fail:
+        msg: "Exiting playbook, user just expects y only"
+      when: user_input.user_input | lower != 'y'
+
+
+    - name: Create .kube directory in the user's home
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+        mode: 0755
+
+    - name: Copy admin.conf to user's kube config
+      command: cp -i /etc/kubernetes/admin.conf {{ ansible_env.HOME }}/.kube/config
+
+    - name: Set ownership of the kube config
+      file:
+        path: "{{ ansible_env.HOME }}/.kube/config"
+        owner: "{{ ansible_env.USER }}"
+        group: "{{ ansible_env.USER }}"
+        mode: 0644
+
+    - name: Get Kubernetes cluster information
+      ansible.builtin.command:
+        cmd: kubectl cluster-info
+      register: kubectl_output
+      become: yes
+
+    - name: Print Kubernetes cluster information
+      ansible.builtin.debug:
+        msg: "{{ kubectl_output.stdout }}"
+
+

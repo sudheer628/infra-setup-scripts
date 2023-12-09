@@ -1,0 +1,23 @@
+---
+- name: Kubernetes Setup with Calico Network Policy
+  hosts: new
+  become: yes
+  tasks:
+
+
+    - name: Copy calico.yaml to remote system
+      ansible.builtin.copy:
+        src: /home/ubuntu/calico.yaml
+        dest: /tmp/calico.yaml
+      become: yes
+
+    - name: Apply calico.yaml using kubectl
+      ansible.builtin.shell:
+        cmd: kubectl apply -f /tmp/calico.yaml
+      become: yes
+
+    - name: Wait and verify
+      ansible.builtin.debug:
+        msg: "wait and verify with kubectl get pods -n kube-system"
+
+

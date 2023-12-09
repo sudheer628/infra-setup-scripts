@@ -1,0 +1,158 @@
+---
+- name: Setup Kubernetes Environment
+  hosts: new
+  become: yes
+  gather_facts: True
+  tasks:
+
+    - name: Update all packages to the latest version
+      apt:
+        upgrade: 'yes'
+        update_cache: yes
+      become: yes
+
+    - name: Install vim and git
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+      loop:
+        - vim
+        - git
+
+    - name: Add entries to /etc/hosts
+      blockinfile:
+        path: /etc/hosts
+        block: |
+          192.168.75.138  k8s-master
+          192.168.75.135  k8s-worker1
+          192.168.75.139  k8s-worker2
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+
+    - name: Disable swap
+      command: swapoff -a
+      ignore_errors: yes
+
+    - name: Install Docker and Kubernetes prerequisites
+      apt:
+        name: "{{ packages }}"
+        update_cache: yes
+      vars:
+        packages:
+          - ca-certificates
+          - curl
+          - gnupg
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+
+    - name: Add Docker GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+    - name: Manually add Kubernetes GPG key
+      ansible.builtin.shell:
+        cmd: |
+          curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          sudo chmod a+r /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      ignore_errors: no
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb /"
+        state: present
+
+    - name: Install Kubernetes packages
+      apt:
+        name: "{{ packages }}"
+        update_cache: yes
+      vars:
+        packages:
+          - kubeadm
+          - kubelet
+          - kubectl
+          - kubernetes-cni
+
+    - name: Hold Kubernetes packages at their current version
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubeadm
+        - kubelet
+        - kubectl
+
+    - name: Start and enable kubelet and docker services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - kubelet
+        - docker
+
+    - name: Test Docker hello world
+      command: docker run hello-world
+      register: docker_hello_world
+      ignore_errors: yes
+
+    - name: Check if docker hello-world was successful
+      assert:
+        that: 
+          - docker_hello_world.rc == 0
+        fail_msg: "Docker hello-world failed to run"
+        success_msg: "Docker hello-world ran successfully"
+
+    - name: Check kubeadm installation
+      command: kubeadm version
+      register: kubeadm_version
+      ignore_errors: yes
+
+    - name: Assert kubeadm is installed
+      assert:
+        that: 
+          - kubeadm_version.rc == 0
+        fail_msg: "kubeadm is not installed"
+        success_msg: "kubeadm is installed"
+
+    - name: Check kubelet installation
+      command: kubelet --version
+      register: kubelet_version
+      ignore_errors: yes
+
+    - name: Assert kubelet is installed
+      assert:
+        that: 
+          - kubelet_version.rc == 0
+        fail_msg: "kubelet is not installed"
+        success_msg: "kubelet is installed"
+
+    - name: Check kubectl installation
+      command: kubectl version --client
+      register: kubectl_version
+      ignore_errors: yes
+
+    - name: Assert kubectl is installed
+      assert:
+        that: 
+          - kubectl_version.rc == 0
+        fail_msg: "kubectl is not installed"
+        success_msg: "kubectl is installed"
+
+
