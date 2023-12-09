@@ -1,3 +1,4 @@
 *.ppk
 *.ppm
-.ansible/facts
+.ansible/*
+
