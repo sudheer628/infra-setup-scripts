@@ -1,6 +1,6 @@
 ---
 - name: Setup Kubectl and helm
-  hosts: local
+  hosts: ec2_instances
   become: yes
   gather_facts: True
   tasks:
@@ -86,28 +86,28 @@
     - debug:
         var: helm_version.stdout
 
-    - name: Download AWS CLI v2 installation package
-      get_url:
-        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
-        dest: /tmp/awscliv2.zip
+#    - name: Download AWS CLI v2 installation package
+#      get_url:
+#        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+#        dest: /tmp/awscliv2.zip
 
-    - name: Install unzip if not present
-      apt:
-        name: unzip
-        state: present
+#    - name: Install unzip if not present
+#      apt:
+#        name: unzip
+#        state: present
 
-    - name: Unzip AWS CLI installation package
-      unarchive:
-        src: /tmp/awscliv2.zip
-        dest: /tmp
-        remote_src: yes
+#    - name: Unzip AWS CLI installation package
+#      unarchive:
+#        src: /tmp/awscliv2.zip
+#        dest: /tmp
+#        remote_src: yes
 
-    - name: Run the AWS CLI install script
-      command: /tmp/aws/install
+#    - name: Run the AWS CLI install script
+#      command: /tmp/aws/install
 
-    - name: Check AWS CLI version
-      command: aws --version
-      register: aws_cli_version
-    - debug:
-        var: aws_cli_version.stdout
+#    - name: Check AWS CLI version
+#      command: aws --version
+#      register: aws_cli_version
+#    - debug:
+#        var: aws_cli_version.stdout
 
