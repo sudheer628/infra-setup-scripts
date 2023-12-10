@@ -62,13 +62,18 @@
         - docker-buildx-plugin
         - docker-compose-plugin
 
+    - name: Change permissions of Docker socket
+      become: yes
+      file:
+        path: /var/run/docker.sock
+        mode: '0666'
+
     - name: Start and enable kubelet and docker services
       systemd:
         name: "{{ item }}"
         state: started
         enabled: yes
       loop:
-        - kubelet
         - docker
 
     - name: Test Docker hello world
