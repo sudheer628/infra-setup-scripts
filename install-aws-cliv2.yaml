@@ -1,0 +1,68 @@
+---
+- name: install aws cli v2 and configure aws cli
+  hosts: ec2_instances
+  become: yes
+  gather_facts: True
+  vars_prompt:
+    - name: aws_access_key
+      prompt: "Enter your AWS Access Key"
+      private: yes
+
+    - name: aws_secret_key
+      prompt: "Enter your AWS Secret Key"
+      private: yes
+
+    - name: aws_region
+      prompt: "Enter your AWS Region"
+  tasks:
+
+    - name: Download AWS CLI v2 installation package
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: /tmp/awscliv2.zip
+
+    - name: Install unzip if not present
+      apt:
+        name: unzip
+        state: present
+
+    - name: Unzip AWS CLI installation package
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Run the AWS CLI install script
+      command: /tmp/aws/install
+
+    - name: Check AWS CLI version
+      command: aws --version
+      register: aws_cli_version
+    - debug:
+        var: aws_cli_version.stdout
+
+    - name: Create AWS config directory
+      file:
+        path: "~/.aws"
+        state: directory
+        mode: '0755'
+
+    - name: Set default region in AWS config
+      lineinfile:
+        path: "~/.aws/config"
+        line: "region = {{ aws_region }}"
+        create: yes
+
+    - name: Set default output format to json in AWS config
+      lineinfile:
+        path: "~/.aws/config"
+        line: "output = json"
+        create: yes
+
+    - name: Configure AWS Access Key
+      shell: aws configure set aws_access_key_id "{{ aws_access_key }}"
+
+    - name: Configure AWS Secret Key
+      shell: aws configure set aws_secret_access_key "{{ aws_secret_key }}"
+
+

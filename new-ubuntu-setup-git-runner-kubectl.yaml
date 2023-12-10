@@ -1,0 +1,118 @@
+---
+- name: Setup gitlab-runner, Kubectl and helm
+  hosts: ec2_instances
+  become: yes
+  gather_facts: True
+  vars_prompt:
+    - name: gitlab_runner_token
+      prompt: "Enter your GitLab Runner registration token"
+      private: yes
+
+  tasks:
+    - name: Update APT package index
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Update all packages to the latest version
+      apt:
+        upgrade: 'yes'
+        update_cache: yes
+      become: yes
+
+    - name: Install vim and git
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+      loop:
+        - vim
+        - git
+
+    - name: Install GitLab Runner repository
+      shell: |
+        curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | bash
+
+    - name: Install GitLab Runner
+      apt:
+        name: gitlab-runner
+        state: present
+
+    - name: Install and configure GitLab Runner
+      shell: |
+        gitlab-runner install --user=ubuntu --working-directory=/home/ubuntu
+        gitlab-runner register --non-interactive \
+                               --url https://gitlab.com \
+                               --registration-token "{{ gitlab_runner_token }}" \
+                               --name "ubuntu-runner" \
+                               --executor "shell"
+        systemctl daemon-reload
+        gitlab-runner start
+
+    - name: Disable swap
+      command: swapoff -a
+      ignore_errors: yes
+
+    - name: Comment out /swap.img in /etc/fstab in addition to previous step
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^(?!#)(.*\/swap\.img.*)$'
+        line: '#\1'
+        backrefs: yes
+
+    - name: Manually add Kubernetes GPG key
+      ansible.builtin.shell:
+        cmd: |
+          curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          sudo chmod a+r /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      ignore_errors: no
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb /"
+        state: present
+
+    - name: Install Kubectl package
+      apt:
+        name: "{{ packages }}"
+        update_cache: yes
+      vars:
+        packages:
+          - kubectl
+
+    - name: Check kubectl installation
+      command: kubectl version --client
+      register: kubectl_version
+      ignore_errors: yes
+
+    - name: Assert kubectl is installed
+      assert:
+        that: 
+          - kubectl_version.rc == 0
+        fail_msg: "kubectl is not installed"
+        success_msg: "kubectl is installed"
+
+    - name: Install apt-transport-https and gnupg2
+      apt:
+        name:
+          - apt-transport-https
+          - gnupg2
+        state: present
+
+    - name: Download get_helm.sh
+      get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get_helm.sh
+        mode: '0700'
+
+    - name: Install Helm
+      shell: /tmp/get_helm.sh
+      args:
+        creates: /usr/local/bin/helm
+
+    - name: Check Helm version
+      command: helm version
+      register: helm_version
+    - debug:
+        var: helm_version.stdout
+
+
