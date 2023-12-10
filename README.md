@@ -87,3 +87,30 @@ Replace `/path/to/private/key` with the path to your private key on the control 
 - If you're working in a team or in a production environment, it's important to manage these keys securely and follow your organization's security policies.
 
 
+## Misc
+
+### Convert .ppk to OpenSSH Key Format for accessing EC2 instances
+
+You need to convert the `.ppk` file to an RSA key file. You can use `puttygen` for this conversion. If `puttygen` is not installed, you can install it (on Ubuntu) using:
+
+```bash
+sudo apt update
+sudo apt install putty-tools
+```
+
+Then, convert the `.ppk` file:
+
+```bash
+puttygen yourkey.ppk -O private-openssh -o yourkey.pem
+```
+
+Replace `yourkey.ppk` with the name of your `.ppk` file and `yourkey.pem` with the desired name for the converted key file.
+
+### Change Key Permissions
+
+Set the correct permissions for the new key file:
+
+```bash
+chmod 400 yourkey.pem
+```
+
