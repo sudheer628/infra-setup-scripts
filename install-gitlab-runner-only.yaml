@@ -1,0 +1,40 @@
+---
+- name: Setup gitlab-runner only
+  hosts: ec2_instances
+  become: yes
+  gather_facts: True
+  vars_prompt:
+    - name: gitlab_runner_token
+      prompt: "Enter your GitLab Runner registration token"
+      private: yes
+
+  tasks:
+    - name: Install vim and git
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+      loop:
+        - git
+
+
+    - name: Install GitLab Runner repository
+      shell: |
+        curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | bash
+
+    - name: Install GitLab Runner
+      apt:
+        name: gitlab-runner
+        state: present
+
+    - name: Install and configure GitLab Runner
+      shell: |
+        gitlab-runner install --user=ubuntu --working-directory=/home/ubuntu
+        gitlab-runner register --non-interactive \
+                               --url https://gitlab.com \
+                               --registration-token "{{ gitlab_runner_token }}" \
+                               --name "ubuntu-runner" \
+                               --executor "shell"
+        systemctl daemon-reload
+        gitlab-runner start
+
+

@@ -1,13 +1,8 @@
 ---
-- name: Setup gitlab-runner, Docker, Kubectl and helm
+- name: Setup Docker, Kubectl and helm
   hosts: ec2_instances
   become: yes
   gather_facts: True
-  vars_prompt:
-    - name: gitlab_runner_token
-      prompt: "Enter your GitLab Runner registration token"
-      private: yes
-
   tasks:
     - name: Update APT package index
       apt:
@@ -68,7 +63,7 @@
         path: /var/run/docker.sock
         mode: '0666'
 
-    - name: Start and enable kubelet and docker services
+    - name: Start and enable docker services
       systemd:
         name: "{{ item }}"
         state: started
@@ -87,26 +82,6 @@
           - docker_hello_world.rc == 0
         fail_msg: "Docker hello-world failed to run"
         success_msg: "Docker hello-world ran successfully"
-
-    - name: Install GitLab Runner repository
-      shell: |
-        curl -L "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh" | bash
-
-    - name: Install GitLab Runner
-      apt:
-        name: gitlab-runner
-        state: present
-
-    - name: Install and configure GitLab Runner
-      shell: |
-        gitlab-runner install --user=ubuntu --working-directory=/home/ubuntu
-        gitlab-runner register --non-interactive \
-                               --url https://gitlab.com \
-                               --registration-token "{{ gitlab_runner_token }}" \
-                               --name "ubuntu-runner" \
-                               --executor "shell"
-        systemctl daemon-reload
-        gitlab-runner start
 
     - name: Disable swap
       command: swapoff -a
