@@ -1,0 +1,49 @@
+---
+- name: Install Node.js on Ubuntu
+  hosts: ec2_instances
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+
+    - name: Create directory for apt keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Nodesource GPG key
+      get_url:
+        url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+        dest: /tmp/nodesource-repo.gpg.key
+
+    - name: Add the Nodesource GPG key
+      ansible.builtin.shell:
+        cmd: gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg < /tmp/nodesource-repo.gpg.key
+        creates: /etc/apt/keyrings/nodesource.gpg
+
+    - name: Add NodeSource repo
+      copy:
+        dest: /etc/apt/sources.list.d/nodesource.list
+        content: "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main"
+        mode: '0644'
+
+    - name: Update apt cache after adding new repository
+      apt:
+        update_cache: yes
+
+    - name: Install Node.js
+      apt:
+        name: nodejs
+        state: present
+
+

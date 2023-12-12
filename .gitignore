@@ -1,4 +1,4 @@
 *.ppk
 *.ppm
 .ansible/*
-
+.ansible/hosts
